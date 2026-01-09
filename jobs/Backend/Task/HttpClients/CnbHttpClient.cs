@@ -1,6 +1,7 @@
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ExchangeRateUpdater.Configuration;
 
@@ -11,11 +12,13 @@ namespace ExchangeRateUpdater.HttpClients
     {
         private readonly HttpClient _httpClient;
         private readonly CnbApiSettings _settings;
+        private readonly ILogger<CnbHttpClient> _logger;
 
-        public CnbHttpClient(HttpClient httpClient, IOptions<CnbApiSettings> settings)
+        public CnbHttpClient(HttpClient httpClient, IOptions<CnbApiSettings> settings, ILogger<CnbHttpClient> logger)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _settings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
             _httpClient.Timeout = TimeSpan.FromSeconds(_settings.TimeoutSeconds);
         }
@@ -33,6 +36,7 @@ namespace ExchangeRateUpdater.HttpClients
 
                 if (string.IsNullOrWhiteSpace(content))
                 {
+                    _logger.LogError("Received empty response from CNB API");
                     throw new InvalidOperationException("Received empty response from CNB API.");
                 }
 
@@ -40,10 +44,12 @@ namespace ExchangeRateUpdater.HttpClients
             }
             catch (HttpRequestException ex)
             {
+                _logger.LogError(ex, "HTTP request to CNB API failed: {Url}", _settings.BaseUrl);
                 throw new InvalidOperationException($"Failed to fetch exchange rates from CNB API.", ex);
             }
             catch (TaskCanceledException ex)
             {
+                _logger.LogError(ex, "Request to CNB API timed out after {TimeoutSeconds} seconds", _settings.TimeoutSeconds);
                 throw new TimeoutException($"Request to CNB API timed out after {_settings.TimeoutSeconds} seconds.", ex);
             }
         }

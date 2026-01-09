@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
+using Microsoft.Extensions.Logging;
 using Polly;
 using ExchangeRateUpdater.Configuration;
 using ExchangeRateUpdater.HttpClients;
@@ -16,10 +17,14 @@ namespace ExchangeRateUpdater
     {
         public static async Task Main(string[] args)
         {
+            // Determine environment (defaults to Production if not set)
+            var environment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production";
+
             // Build configuration
             var configuration = new ConfigurationBuilder()
                 .SetBasePath(AppContext.BaseDirectory)
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: true)
                 .Build();
 
             // Setup dependency injection container
@@ -30,6 +35,13 @@ namespace ExchangeRateUpdater
             // 3. Calls the constructor with the created instances
             // This eliminates manual object creation and enables loose coupling.
             var services = new ServiceCollection();
+
+            // Configure logging
+            services.AddLogging(builder =>
+            {
+                builder.AddConfiguration(configuration.GetSection("Logging"));
+                builder.AddConsole();
+            });
 
             // Register configuration
             var cnbSettings = configuration.GetSection("CnbApi").Get<CnbApiSettings>();
@@ -63,12 +75,19 @@ namespace ExchangeRateUpdater
                 new Currency("XYZ")
             };
 
+            var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger("ExchangeRateUpdater.Program");
+
             try
             {
                 var provider = serviceProvider.GetRequiredService<ExchangeRateProvider>();
+
+                logger.LogDebug("Starting exchange rate retrieval for {CurrencyCount} currencies", currencies.Length);
+
                 var rates = await provider.GetExchangeRatesAsync(currencies);
 
-                Console.WriteLine($"Successfully retrieved {rates.Count()} exchange rates:");
+                logger.LogDebug("Successfully retrieved {RateCount} exchange rates", rates.Count());
+
                 foreach (var rate in rates)
                 {
                     Console.WriteLine(rate.ToString());
@@ -76,6 +95,7 @@ namespace ExchangeRateUpdater
             }
             catch (Exception e)
             {
+                logger.LogError(e, "Failed to retrieve exchange rates");
                 Console.WriteLine($"Could not retrieve exchange rates: '{e.Message}'.");
             }
 

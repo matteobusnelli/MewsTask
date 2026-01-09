@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using ExchangeRateUpdater.Exceptions;
 using ExchangeRateUpdater.Parsers.Models;
 
@@ -14,11 +15,19 @@ namespace ExchangeRateUpdater.Parsers
         private const char Separator = '|';
         private const int ColumnCount = 5;
 
+        private readonly ILogger<CnbDataParser> _logger;
+
+        public CnbDataParser(ILogger<CnbDataParser> logger)
+        {
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
         // Method's implementation: parses raw CNB exchange rate data and returns a collection of parsed exchange rate records
         public IEnumerable<CnbExchangeRateData> Parse(string rawData)
         {
             if (string.IsNullOrWhiteSpace(rawData))
             {
+                _logger.LogError("Cannot parse empty or null data");
                 throw new CnbDataParsingException("Cannot parse empty or null data.");
             }
 
@@ -29,6 +38,7 @@ namespace ExchangeRateUpdater.Parsers
 
             if (lines.Length < 3)
             {
+                _logger.LogError("Invalid data format. Expected at least 3 lines, got {LineCount}", lines.Length);
                 throw new CnbDataParsingException($"Invalid data format. Expected at least 3 lines (date header, column headers, data), but got {lines.Length}.", rawData);
             }
 
@@ -52,6 +62,7 @@ namespace ExchangeRateUpdater.Parsers
                 }
                 catch (CnbDataParsingException ex) when (ex.LineNumber == null)
                 {
+                    _logger.LogError(ex, "Failed to parse line {LineNumber}: {ErrorMessage}", lineNumber, ex.Message);
                     // Re-throw with line number context
                     throw new CnbDataParsingException(
                         ex.Message,
@@ -61,6 +72,7 @@ namespace ExchangeRateUpdater.Parsers
                 }
                 catch (Exception ex) when (ex is not CnbDataParsingException)
                 {
+                    _logger.LogError(ex, "Unexpected error parsing line {LineNumber}", lineNumber);
                     throw new CnbDataParsingException(
                         $"Failed to parse line {lineNumber}: {ex.Message}",
                         line,
@@ -72,10 +84,11 @@ namespace ExchangeRateUpdater.Parsers
             return result;
         }
 
-        private static void ValidateHeader(string headerLine)
+        private void ValidateHeader(string headerLine)
         {
             if (!string.Equals(headerLine, Header, StringComparison.OrdinalIgnoreCase))
             {
+                _logger.LogError("Invalid column headers. Expected '{ExpectedHeader}', got '{ActualHeader}'", Header, headerLine);
                 throw new CnbDataParsingException($"Invalid column headers. Expected '{Header}', but got '{headerLine}'.");
             }
         }
