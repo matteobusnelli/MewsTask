@@ -1,6 +1,28 @@
 # Mews backend developer task
 
-We are focused on multiple backend frameworks at Mews. Depending on the job position you are applying for, you can choose among the following:
+## Running the .NET Exchange Rate Updater
 
-* [.NET](DotNet.md)
-* [Ruby on Rails](RoR.md)
+### Prerequisites
+- .NET 10.0 SDK
+
+### Build and Run the Application
+
+```bash
+# Build the solution
+dotnet build Task/ExchangeRateUpdater.sln
+
+# Run the application
+dotnet run --project Task/ExchangeRateUpdater.csproj
+```
+
+The application will fetch current exchange rates from the Czech National Bank and display them in the console.
+
+### Run Unit Tests
+
+```bash
+# Run all tests
+dotnet test Task.Tests/ExchangeRateUpdater.Tests.csproj
+
+# Run tests with detailed output
+dotnet test Task.Tests/ExchangeRateUpdater.Tests.csproj --verbosity normal
+```
