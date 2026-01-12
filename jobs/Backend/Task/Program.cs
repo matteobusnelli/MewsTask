@@ -96,7 +96,7 @@ namespace ExchangeRateUpdater
             catch (Exception e)
             {
                 logger.LogError(e, "Failed to retrieve exchange rates");
-                Console.WriteLine($"Could not retrieve exchange rates: '{e.Message}'.");
+                Console.WriteLine("Could not retrieve exchange rates. Please check the logs for details.");
             }
 
             Console.ReadLine();
