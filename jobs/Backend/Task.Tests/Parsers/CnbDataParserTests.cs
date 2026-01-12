@@ -2,6 +2,7 @@ using FluentAssertions;
 using ExchangeRateUpdater.Parsers;
 using ExchangeRateUpdater.Exceptions;
 using ExchangeRateUpdater.Tests.TestData;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ExchangeRateUpdater.Tests.Parsers
 {
@@ -11,7 +12,7 @@ namespace ExchangeRateUpdater.Tests.Parsers
 
         public CnbDataParserTests()
         {
-            _parser = new CnbDataParser();
+            _parser = new CnbDataParser(NullLogger<CnbDataParser>.Instance);
         }
 
         [Fact]
